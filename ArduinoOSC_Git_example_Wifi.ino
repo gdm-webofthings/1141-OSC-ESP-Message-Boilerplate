@@ -1,80 +1,114 @@
-// #define ARDUINOOSC_DEBUGLOG_ENABLE
+//Tim Imports
+#include <SLIPEncodedSerial.h>
+#include <OSCData.h>
+#include <OSCBundle.h>
+#include <OSCBoards.h>
+#include <OSCTiming.h>
+#include <OSCMessage.h>
+#include <OSCMatch.h>
+#include <SLIPEncodedUSBSerial.h>
 
-// Please include ArduinoOSCWiFi.h to use ArduinoOSC on the platform
-// which can use both WiFi and Ethernet
-#include <ArduinoOSCWiFi.h>
-// this is also valid for other platforms which can use only WiFi
-// #include <ArduinoOSC.h>
+#include "Arduino.h"
+#include <WiFi.h>
+#include <WiFiUdp.h>
+#include <SPI.h>
+#include <OSCMessage.h>
 
-// WiFi stuff
-const char* ssid = "iFlone";
-const char* pwd = "Florian8";
-const IPAddress ip(192, 168, 1, 201);
-const IPAddress gateway(192, 168, 1, 1);
-const IPAddress subnet(255, 255, 255, 0);
+// -----------------------
+// Internals TIM
+// -----------------------
 
-// for ArduinoOSC
-const char* host = "192.168.2.75";
-const int recv_port = 54321;
-const int bind_port = 54321;
-const int send_port = 54321;
-const int publish_port = 54321;
-// send / receive variables
-int i;
-float f;
-String s;
+WiFiUDP udp;             // Wifi UDP instance
+IPAddress ip;           // The ESP's IP
+IPAddress outIp(xxx, xx, xx, x); //IP Address to send to (DASHBOARD IP)
+OSCMessage msg("/Client-XX"); // OSC Address, replace XX by your Client ID
 
-void onOscReceived(const OscMessage& m) {
-    Serial.print(m.remoteIP());
-    Serial.print(" ");
-    Serial.print(m.remotePort());
-    Serial.print(" ");
-    Serial.print(m.size());
-    Serial.print(" ");
-    Serial.print(m.address());
-    Serial.print(" ");
-    Serial.print(m.arg<int>(0));
-    Serial.print(" ");
-    Serial.print(m.arg<float>(1));
-    Serial.print(" ");
-    Serial.print(m.arg<String>(2));
-    Serial.println();
+// -----------------------
+// Network Stuff
+// -----------------------
+
+char ssid[] = "xxxx";                       // your network SSID (name)
+char pass[] = "xxxx";                       // your network password
+const unsigned int receivePort = 8888;  // Local port to listen (Same as port in dashboard)
+const unsigned int outPort = 57111;      // Port to send to DO NOT CHANGE
+
+// -----------------------
+// General Program Logic TIM
+// -----------------------
+
+/**
+ * Send OSC Message with certain state
+ */
+
+void stuurMessage(int state) {
+  // Add state to message
+  msg.add(state);
+
+  // Send a message
+  sendMessage(outIp, msg);
 }
 
-void setup() {
-    Serial.begin(115200);
-    delay(2000);
+/**
+ * Sends an OSC message to a specific address
+ */
+void sendMessage(IPAddress to, OSCMessage& msg) {
+  // Sending over udp, begin the packet header
+  udp.beginPacket(to, outPort);
 
-    // WiFi stuff (no timeout setting for WiFi)
-#ifdef ESP_PLATFORM
-    WiFi.disconnect(true, true);  // disable wifi, erase ap info
-    delay(1000);
-    WiFi.mode(WIFI_STA);
-#endif
-    WiFi.begin(ssid, pwd);
-    WiFi.config(ip, gateway, subnet);
-    while (WiFi.status() != WL_CONNECTED) {
-        Serial.print(".");
-        delay(1000);
+  // Send the message, the bytes to the SLIP stream
+  msg.send(udp);
+
+  // Mark the end of the OSC packet
+  udp.endPacket();
+
+  // Free space occupied by message
+  msg.empty();
+}
+
+/**
+ * Receiving the messages from a specific address
+ */
+void receiveMessage() {
+  // Creates the internal
+  OSCMessage inmsg;
+
+  // Parse the UDP package
+  int size = udp.parsePacket();
+
+  // Did we receive something?
+  if (size > 0) {
+    while (size--) {
+      inmsg.fill(udp.read());
     }
-    Serial.println("WiFi connected, IP = ");
-    Serial.print(WiFi.localIP());
-
-    // publish osc messages (default publish rate = 30 [Hz])
-
-    OscWiFi.publish(host, publish_port, "/publish/Client-01", 1, 1, 1)
-        ->setFrameRate(60.f);
-
-//    OscWiFi.publish(host, publish_port, "/Client-01", 1);
-
-    // subscribe osc messages
-    OscWiFi.subscribe(recv_port, "/Client-01", onOscReceived);
+    if (!inmsg.hasError()) {
+      inmsg.dispatch("/servermessage", handleReceive);
+      // @TODO dispatch other functions
+    }
+  }
 }
+
+// ------------------------------
+// Dispatched Logic from receiver
+// ------------------------------
+
+/**
+ * A demo function to know if the receiver is working
+ */
+void handleReceive(OSCMessage &msg) {
+//  handleState(msg.getInt(0));
+//@TODO Zelf schrijven hoe je de ontvangen state handlet
+}
+
+// ------------------------------
+// General loop
+// ------------------------------
 
 void loop() {
-    OscWiFi.update();  // should be called to receive + send osc
+  //@TODO Jouw code
 
-    // or do that separately
-    // OscWiFi.parse(); // to receive osc
-    // OscWiFi.post(); // to publish osc
+  //@TODO gebruik de stuurMessage() functie met een state
+
+  // Checks if we received a message
+  receiveMessage();
+
 }
