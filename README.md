@@ -20,3 +20,8 @@ In main file:
 
 ## When running for the first time
 Open Serial monitor and take note of your ESP's IP Address to put in the dashboard
+
+## When using
+Always send a message in this format:
+sendMessage(outIp, msg, ###);
+Replace the ### with your desired state. outIp and msg are variables you always need
