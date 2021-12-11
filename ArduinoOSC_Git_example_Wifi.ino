@@ -1,4 +1,6 @@
-//Tim Imports
+// -----------------------
+// Imports
+// -----------------------
 #include <SLIPEncodedSerial.h>
 #include <OSCData.h>
 #include <OSCBundle.h>
@@ -9,106 +11,61 @@
 #include <SLIPEncodedUSBSerial.h>
 
 #include "Arduino.h"
-#include <WiFi.h>
+#include <WiFi.h> // Wifi library for the ESP32, your board may need another library (eg.ESP8266)
 #include <WiFiUdp.h>
 #include <SPI.h>
 #include <OSCMessage.h>
 
 // -----------------------
-// Internals TIM
+// Variables
 // -----------------------
 
-WiFiUDP udp;             // Wifi UDP instance
-IPAddress ip;           // The ESP's IP
-IPAddress outIp(xxx, xx, xx, x); //IP Address to send to (DASHBOARD IP)
-OSCMessage msg("/Client-XX"); // OSC Address, replace XX by your Client ID
+#include "variables.h"
 
 // -----------------------
-// Network Stuff
+// Setup
 // -----------------------
 
-char ssid[] = "xxxx";                       // your network SSID (name)
-char pass[] = "xxxx";                       // your network password
-const unsigned int receivePort = 8888;  // Local port to listen (Same as port in dashboard)
-const unsigned int outPort = 57111;      // Port to send to DO NOT CHANGE
+void setup() {
+  // Start Serial at a specific Baudrate
+  Serial.begin(115200);
 
-// -----------------------
-// General Program Logic TIM
-// -----------------------
+  // TODO: Set pin modes
+  
 
-/**
- * Send OSC Message with certain state
- */
+  // Connecting to WiFi
 
-void stuurMessage(int state) {
-  // Add state to message
-  msg.add(state);
+  // Set Station mode ESP32
+  WiFi.mode(WIFI_STA);
 
-  // Send a message
-  sendMessage(outIp, msg);
-}
+  // Begin WiFi looking
+  WiFi.begin(ssid, pass);
 
-/**
- * Sends an OSC message to a specific address
- */
-void sendMessage(IPAddress to, OSCMessage& msg) {
-  // Sending over udp, begin the packet header
-  udp.beginPacket(to, outPort);
-
-  // Send the message, the bytes to the SLIP stream
-  msg.send(udp);
-
-  // Mark the end of the OSC packet
-  udp.endPacket();
-
-  // Free space occupied by message
-  msg.empty();
-}
-
-/**
- * Receiving the messages from a specific address
- */
-void receiveMessage() {
-  // Creates the internal
-  OSCMessage inmsg;
-
-  // Parse the UDP package
-  int size = udp.parsePacket();
-
-  // Did we receive something?
-  if (size > 0) {
-    while (size--) {
-      inmsg.fill(udp.read());
-    }
-    if (!inmsg.hasError()) {
-      inmsg.dispatch("/servermessage", handleReceive);
-      // @TODO dispatch other functions
-    }
+  // Start connecting and wait
+  Serial.print("Connecting");
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
   }
+  Serial.println();
+
+  // When we are connected
+  Serial.print("Connected, IP address: ");
+  ip = WiFi.localIP();
+  Serial.println(ip);
+
+  // Begin with UDP
+  udp.begin(receivePort);
 }
 
 // ------------------------------
-// Dispatched Logic from receiver
-// ------------------------------
-
-/**
- * A demo function to know if the receiver is working
- */
-void handleReceive(OSCMessage &msg) {
-//  handleState(msg.getInt(0));
-//@TODO Zelf schrijven hoe je de ontvangen state handlet
-}
-
-// ------------------------------
-// General loop
+// Program loop
 // ------------------------------
 
 void loop() {
-  //@TODO Jouw code
-
-  //@TODO gebruik de stuurMessage() functie met een state
+  //@TODO your code
 
   // Checks if we received a message
   receiveMessage();
-
 }
